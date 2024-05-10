@@ -1,30 +1,100 @@
-from data_processor import DataProcessor
-from bert_classifier import BERTClassifier
-from sklearn.model_selection import train_test_split
+from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
+from torch.utils.data import Dataset
 import torch
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+import pandas as pd
 
 
-def main():
+class CustomDataset(Dataset):
+    """Класс для создания PyTorch-совместимого датасета."""
+    def __init__(self, texts, labels, tokenizer, max_len=512):
+        self.texts = texts
+        self.labels = labels
+        self.tokenizer = tokenizer
+        self.max_len = max_len
 
-    # Получение датасета через DataProcessor
-    data_processor = DataProcessor('customer_support_tickets.csv')
-    data = data_processor.load_and_filter_data()
+    def __len__(self):
+        return len(self.texts)
 
-    # Разделение на признаки и метки
-    texts = data['Ticket Type'].tolist()  # Замените 'text_column_name' на имя столбца с текстами
-    labels = data['Ticket Description'].tolist()  # Замените 'label_column_name' на имя столбца с метками
+    def __getitem__(self, idx):
+        text = self.texts[idx]
+        label = self.labels[idx]
+        encoding = self.tokenizer.encode_plus(
+            text,
+            add_special_tokens=True,
+            max_length=self.max_len,
+            return_token_type_ids=False,
+            padding='max_length',
+            truncation=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+        )
+        return {
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'labels': torch.tensor(label, dtype=torch.long)
+        }
 
-    # Разделение на тренировочный и тестовый датасеты
-    texts_train, texts_test, labels_train, labels_test = train_test_split(texts, labels, test_size=0.2, random_state=42)
 
-    # Создание устройства для обучения на GPU, если доступно
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Определение устройства
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 
-    classifier = BERTClassifier("bert-base-multilingual-cased", num_labels=5, device=device)
-    train_loader = classifier.prepare_data(texts_train, labels_train)
-    val_loader = classifier.prepare_data(texts_test, labels_test)
-    classifier.train(train_loader, val_loader)
+# Загрузка токенизатора и модели
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+# Подготовка данных
+data = pd.read_csv('customer_support_tickets.csv')
+texts = data['Ticket Description'].tolist()   # Примеры текстов
+categories = data['Ticket Type'].tolist()  # Категории в текстовом формате
+
+# Создание и обучение LabelEncoder
+label_encoder = LabelEncoder()
+labels = label_encoder.fit_transform(categories)  # Преобразование текстовых меток в числовые
+
+# Разделение данных
+train_texts, test_texts, train_labels, test_labels = train_test_split(texts, labels, test_size=0.2, random_state=42)
+
+# Создание тренировочного и тестового датасетов
+train_dataset = CustomDataset(train_texts, train_labels, tokenizer)
+test_dataset = CustomDataset(test_texts, test_labels, tokenizer)
+
+# Настройка модели
+model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=len(set(labels))).to(device)
+
+# Параметры обучения
+training_args = TrainingArguments(
+    output_dir='./results',
+    num_train_epochs=3,
+    per_device_train_batch_size=16,
+    warmup_steps=500,
+    weight_decay=0.01,
+    logging_dir='./logs',
+    logging_steps=10,
+)
+
+# Обучение
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset
+)
+
+trainer.train()
+
+# Оценка модели на тестовом наборе
+results = trainer.evaluate()
+print(results)
 
 
-if __name__ == '__main__':
-    main()
+# Функция для преобразования числовых меток обратно в текстовые
+def decode_labels(encoded_labels):
+    return label_encoder.inverse_transform(encoded_labels)
+
+
+# Пример использования функции
+# predicted_labels_numeric = [0, 2, 1]  # предполагаемые числовые метки от модели
+# predicted_labels_text = decode_labels(predicted_labels_numeric)
+# print(predicted_labels_text)
