@@ -31,15 +31,19 @@ class CustomDataset(Dataset):
             return_tensors='pt',
         )
         return {
-            'input_ids': encoding['input_ids'].flatten(),
-            'attention_mask': encoding['attention_mask'].flatten(),
-            'labels': torch.tensor(label, dtype=torch.long)
+            'input_ids': encoding['input_ids'].flatten().to(device),
+            'attention_mask': encoding['attention_mask'].flatten().to(device),
+            'labels': torch.tensor(label, dtype=torch.long).to(device)
         }
 
 
 # Определение устройства
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
+print(torch.__version__)
+print(torch.version.cuda)
+print(torch.cuda.get_device_name(0))
+
 
 # Загрузка токенизатора и модели
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -81,6 +85,9 @@ trainer = Trainer(
     train_dataset=train_dataset,
     eval_dataset=test_dataset
 )
+
+print(torch.cuda.memory_allocated())
+print(torch.cuda.memory_reserved())
 
 trainer.train()
 
