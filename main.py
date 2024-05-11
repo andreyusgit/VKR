@@ -1,5 +1,5 @@
 from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -31,19 +31,14 @@ class CustomDataset(Dataset):
             return_tensors='pt',
         )
         return {
-            'input_ids': encoding['input_ids'].flatten().to(device),
-            'attention_mask': encoding['attention_mask'].flatten().to(device),
-            'labels': torch.tensor(label, dtype=torch.long).to(device)
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'labels': torch.tensor(label, dtype=torch.long)
         }
-
 
 # Определение устройства
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
-print(torch.__version__)
-print(torch.version.cuda)
-print(torch.cuda.get_device_name(0))
-
 
 # Загрузка токенизатора и модели
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -83,11 +78,9 @@ trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
-    eval_dataset=test_dataset
+    eval_dataset=test_dataset,
+    data_collator=lambda data: {k: v.to(device) for k, v in data.items()}  # Добавление перемещения данных на GPU
 )
-
-print(torch.cuda.memory_allocated())
-print(torch.cuda.memory_reserved())
 
 trainer.train()
 
@@ -95,11 +88,9 @@ trainer.train()
 results = trainer.evaluate()
 print(results)
 
-
 # Функция для преобразования числовых меток обратно в текстовые
 def decode_labels(encoded_labels):
     return label_encoder.inverse_transform(encoded_labels)
-
 
 # Пример использования функции
 # predicted_labels_numeric = [0, 2, 1]  # предполагаемые числовые метки от модели
