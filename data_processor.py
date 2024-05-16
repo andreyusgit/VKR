@@ -1,5 +1,4 @@
 import pandas as pd
-import random
 
 from sklearn.preprocessing import LabelEncoder
 from logger import Logger
@@ -7,53 +6,85 @@ from logger import Logger
 
 class DataProcessor:
     """
-    Data processor for loading and filtering dataset to specific columns.
+    Класс для обработки данных, загрузки и фильтрации набора данных по специфическим колонкам.
     """
 
     def __init__(self, file_path, enable_logging=True):
         """
-        Initialize the data processor with the file path.
+        Инициализация обработчика данных с указанием пути к файлу.
 
-        :param file_path: str, path to the CSV file containing the dataset
+        :param file_path: str, путь к CSV файлу, содержащему набор данных
+        :param enable_logging: bool, флаг для включения логирования
         """
         self.file_path = file_path
-        self.log = Logger(enable_logging)
-        self.label_encoder = LabelEncoder()
+        self.log = Logger(enable_logging)  # Создание экземпляра логгера
+        self.label_encoder = LabelEncoder()  # Инициализация кодировщика меток
 
     def load_and_filter_data(self, label_column, data_columns):
         """
-        Load data from CSV and filter to keep only the 'x' and 'y' columns.
-        :param required_columns: Какие колонки оставить в датасете
-        :return: pd.DataFrame, filtered data with columns 'x' and 'y'
-        """
-        # Load the dataset
-        data = pd.read_csv(self.file_path)
+        Загрузка данных из CSV и фильтрация для сохранения только необходимых колонок.
 
-        # Проверяем, что все указанные столбцы существуют в DataFrame
+        :param label_column: str, название колонки с метками (целевая переменная)
+        :param data_columns: list, список колонок с данными, которые нужно сохранить
+        :return: tuple, содержащий список меток и список текстов (данные из указанных колонок)
+        """
+        try:
+            data = pd.read_csv(self.file_path)  # Загрузка датасета
+        except FileNotFoundError as e:
+            self.log.error(f"File not found: {self.file_path}")
+            raise e
+        except pd.errors.EmptyDataError as e:
+            self.log.error(f"Empty data error: {self.file_path}")
+            raise e
+        except Exception as e:
+            self.log.error(f"Error loading data: {e}")
+            raise e
+
+        # Проверка наличия необходимых колонок в датасете
         if label_column not in data.columns:
-            raise ValueError(f"Label column '{label_column}' not found in DataFrame.")
+            error_msg = f"Label column '{label_column}' not found in DataFrame."
+            self.log.error(error_msg)
+            raise ValueError(error_msg)
         if not all(col in data.columns for col in data_columns):
             missing_cols = [col for col in data_columns if col not in data.columns]
-            raise ValueError(f"Data columns '{missing_cols}' not found in DataFrame.")
+            error_msg = f"Data columns '{missing_cols}' not found in DataFrame."
+            self.log.error(error_msg)
+            raise ValueError(error_msg)
 
-        # Извлечение столбца лейблов и преобразование его в список
+        # Удаление строк с пустыми значениями в указанных колонках
+        data = data.dropna(subset=[label_column] + data_columns)
+        if data.empty:
+            error_msg = "No data left after dropping rows with missing values."
+            self.log.error(error_msg)
+            raise ValueError(error_msg)
+
+        # Извлечение меток и данных из указанных колонок
         labels = data[label_column].tolist()
-
-        # Объединение данных из указанных столбцов, если их несколько
         if len(data_columns) == 1:
             texts = data[data_columns[0]].tolist()
         else:
-            # Создание одного столбца, объединив данные из всех указанных столбцов
             data['combined_text'] = data[data_columns].apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
             texts = data['combined_text'].tolist()
 
-        self.log.important('Number of training sentences: {:,}\n'.format(data.shape[0]))
+        # Логирование количества обработанных предложений
+        self.log.important('Number of training sentences: {:,}\n'.format(len(texts)))
 
         return labels, texts
 
     def code_labels(self, categories):
-        # Создание и обучение LabelEncoder
-        return self.label_encoder.fit_transform(categories)  # Преобразование текстовых меток в числовые
+        """
+        Кодирование меток в числовые значения с помощью LabelEncoder.
+
+        :param categories: list, список категорий (текстовые метки) для кодирования
+        :return: array, массив закодированных числовых меток
+        """
+        return self.label_encoder.fit_transform(categories)
 
     def decode_labels(self, encoded_labels):
+        """
+        Декодирование числовых меток обратно в текстовые.
+
+        :param encoded_labels: ndarray, массив числовых меток для декодирования
+        :return: list, список декодированных текстовых меток
+        """
         return self.label_encoder.inverse_transform(encoded_labels)
