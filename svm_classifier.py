@@ -14,6 +14,7 @@ nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
+
 class SVMClassifier:
     """
     Классификатор, использующий SVM для классификации текстов.
@@ -45,7 +46,7 @@ class SVMClassifier:
         words = [self.lemmatizer.lemmatize(word.lower()) for word in words if word.isalpha() and word.lower() not in self.stop_words]
         return ' '.join(words)
 
-    def prepare_data(self, texts, labels, test_size=0.25, random_state=42):
+    def prepare_data(self, texts, labels, test_size=0.2, random_state=42):
         """
         Подготовка данных для обучения и тестирования.
 

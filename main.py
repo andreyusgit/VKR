@@ -4,11 +4,9 @@ from svm_classifier import SVMClassifier
 
 
 # Подготовка данных
-data = DataProcessor('poem_classification.csv')
-categories, texts = data.load_and_filter_data(data_columns=['Poem'], label_column='Genre')
+data = DataProcessor('spam_email.csv')
+categories, texts = data.load_and_filter_data(data_columns=['MESSAGE'], label_column='CATEGORY')
 labels = data.code_labels(categories)  # Преобразование текстовых меток в числовые
-print(texts)
-print(categories)
 
 # BERT_model = BERTClassifier('bert-base-uncased', num_labels=len(set(labels)))
 # train_dataset, test_dataset = BERT_model.prepare_data(texts, labels)
