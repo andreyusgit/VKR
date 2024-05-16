@@ -40,13 +40,12 @@ class SVMClassifier:
         :param text: str, исходный текст
         :return: str, обработанный текст
         """
-        # Токенизация текста
         words = word_tokenize(text)
-        # Удаление стоп-слов и лемматизация
-        words = [self.lemmatizer.lemmatize(word.lower()) for word in words if word.isalpha() and word.lower() not in self.stop_words]
+        words = [self.lemmatizer.lemmatize(word.lower()) for word in words if
+                 word.isalpha() and word.lower() not in self.stop_words]
         return ' '.join(words)
 
-    def prepare_data(self, texts, labels, test_size=0.2, random_state=42):
+    def prepare_data(self, texts, labels, test_size=0.25, random_state=42):
         """
         Подготовка данных для обучения и тестирования.
 
@@ -55,27 +54,34 @@ class SVMClassifier:
         :param test_size: float, доля тестовой выборки
         :param random_state: int, сид для случайного разбиения данных
         """
-        # Применение предварительной обработки к каждому тексту
         preprocessed_texts = [self.preprocess_text(text) for text in texts]
 
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             preprocessed_texts, labels, test_size=test_size, random_state=random_state
         )
 
-        # Преобразование текстов в векторы признаков
-        self.X_train = self.vectorizer.fit_transform(self.X_train).toarray()
-        self.X_test = self.vectorizer.transform(self.X_test).toarray()
+        self.X_train = self.vectorizer.fit_transform(self.X_train)
+        self.X_test = self.vectorizer.transform(self.X_test)
 
-        self.log.info(f'Training data prepared: {self.X_train.shape[0]} training samples, {self.X_test.shape[0]} test samples')
+        self.log.info(
+            f'Training data prepared: {self.X_train.shape[0]} training samples, {self.X_test.shape[0]} test samples')
 
     def train(self):
         """
         Обучение модели SVM с подбором гиперпараметров.
         """
-        parameters = {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf', 'poly'], 'gamma': ['scale', 'auto']}
-        grid_search = GridSearchCV(self.model, parameters, cv=5, scoring='accuracy')
+        parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10], 'gamma': [0.001]}
+
+        def log_best_params(gs):
+            self.log.info(f"Best parameters found: {gs.best_params_}")
+            self.log.info(f"Best cross-validation score: {gs.best_score_:.2f}")
+
+        grid_search = GridSearchCV(self.model, parameters, cv=3, scoring='accuracy', verbose=3)
         grid_search.fit(self.X_train, self.y_train)
+
         self.model = grid_search.best_estimator_
+
+        log_best_params(grid_search)
         self.log.important('Model trained successfully with best parameters.')
 
     def evaluate(self):
