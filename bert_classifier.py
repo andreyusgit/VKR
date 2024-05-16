@@ -54,23 +54,6 @@ class BERTClassifier:
             device = torch.device("cpu")
         return device
 
-    def _get_max_sentence_len(self, sentences):
-        """
-        Определение максимальной длины предложения после токенизации.
-
-        :param sentences: list, список предложений для обработки
-        :return: int, максимальная длина предложения
-        """
-        max_len = 0
-        for sent in sentences:
-            input_ids = self.tokenizer.encode(sent, add_special_tokens=True)
-            max_len = max(max_len, len(input_ids))
-
-        self.log.info('Max sentence length: ' + str(max_len))
-        if max_len > 0 and (max_len & (max_len - 1)) == 0:
-            return max_len
-        return 1 << (max_len.bit_length())
-
     def _print_model_params(self):
         """
         Вывод параметров модели.
@@ -122,14 +105,16 @@ class BERTClassifier:
         :return: tuple, содержащий тренировочный и валидационный DataLoader
         """
         input_ids, attention_masks = [], []
-        max_len = self._get_max_sentence_len(sentences)
+        max_len = 512  # Устанавливаем максимальную длину в 512 токенов
+
         for sent in sentences:
             encoded_dict = self.tokenizer.encode_plus(
                 sent,
                 add_special_tokens=True,
-                max_length=max_len,
+                max_length=max_len,  # Ограничиваем максимальную длину
                 pad_to_max_length=True,
                 return_attention_mask=True,
+                truncation=True,  # Добавляем усечение
                 return_tensors='pt'
             )
             input_ids.append(encoded_dict['input_ids'])
