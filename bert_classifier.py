@@ -158,7 +158,7 @@ class BERTClassifier:
         )
         return train_dataloader, test_dataloader
 
-    def train(self, epochs=3, batch_size=32):
+    def train(self, epochs=3, batch_size=16):
         """
         Обучение модели BERT.
 
@@ -167,6 +167,9 @@ class BERTClassifier:
         """
         if self.train_dataset is None or self.test_dataset is None:
             raise ValueError("Data must be prepared before training. Call prepare_data first.")
+
+        # Освобождаем память CUDA перед началом тренировки
+        torch.cuda.empty_cache()
 
         train_dataloader, test_dataloader = self._create_dataloaders(batch_size)
         if torch.cuda.is_available():
@@ -193,6 +196,9 @@ class BERTClassifier:
                 'Test Time': test_time
             })
 
+            # Освобождаем память CUDA после каждой эпохи
+            torch.cuda.empty_cache()
+
         self.log.important("\n\n\nTraining complete! Total training took " +
                            "{:} (hh:mm:ss)".format(self._format_time(time.time() - total_t0)))
         self._save_model()
@@ -216,9 +222,12 @@ class BERTClassifier:
         for step, batch in enumerate(train_dataloader):
             if step % 40 == 0 and not step == 0:
                 elapsed = self._format_time(time.time() - t0)
-                self.log.info('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
+                self.log.info(
+                    '  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
 
-            b_input_ids, b_input_mask, b_labels = (batch[0].to(self.device), batch[1].to(self.device), batch[2].to(self.device))
+            b_input_ids, b_input_mask, b_labels = (batch[0].to(self.device),
+                                                   batch[1].to(self.device),
+                                                   batch[2].to(self.device))
             self.model.zero_grad()
             outputs = self.model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
             loss = outputs.loss
@@ -249,7 +258,9 @@ class BERTClassifier:
         total_eval_loss = 0
 
         for batch in test_dataloader:
-            b_input_ids, b_input_mask, b_labels = (batch[0].to(self.device), batch[1].to(self.device), batch[2].to(self.device))
+            b_input_ids, b_input_mask, b_labels = (batch[0].to(self.device),
+                                                   batch[1].to(self.device),
+                                                   batch[2].to(self.device))
             with torch.no_grad():
                 outputs = self.model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
                 loss = outputs.loss
