@@ -59,12 +59,12 @@ class DataProcessor:
             raise ValueError(error_msg)
 
         # Извлечение меток и данных из указанных колонок
-        labels = data[label_column].tolist()
+        labels = data[label_column].head(6335).tolist()
         if len(data_columns) == 1:
-            texts = data[data_columns[0]].tolist()
+            texts = data[data_columns[0]].head(6335).tolist()
         else:
             data['combined_text'] = data[data_columns].apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
-            texts = data['combined_text'].tolist()
+            texts = data['combined_text'].head(6335).tolist()
 
         # Логирование количества обработанных предложений
         self.log.important('Number of training sentences: {:,}\n'.format(len(texts)))

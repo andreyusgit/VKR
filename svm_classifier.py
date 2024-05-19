@@ -44,7 +44,7 @@ class SVMClassifier:
                  word.isalpha() and word.lower() not in self.stop_words]
         return ' '.join(words)
 
-    def prepare_data(self, texts, labels, test_size=0.25, random_state=42):
+    def prepare_data(self, texts, labels, texts2, labels2, test_size=0.25, random_state=42):
         """
         Подготовка данных для обучения и тестирования.
 
@@ -55,8 +55,14 @@ class SVMClassifier:
         """
         preprocessed_texts = [self.preprocess_text(text) for text in texts]
 
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+        preprocessed_texts2 = [self.preprocess_text(text) for text in texts2]
+
+        self.X_train, temp1, self.y_train, temp2 = train_test_split(
             preprocessed_texts, labels, test_size=test_size, random_state=random_state
+        )
+
+        temp1, self.X_test, temp2, self.y_test = train_test_split(
+            preprocessed_texts2, labels, test_size=test_size, random_state=random_state
         )
 
         self.X_train = self.vectorizer.fit_transform(self.X_train)
@@ -69,7 +75,7 @@ class SVMClassifier:
         """
         Обучение модели SVM с подбором гиперпараметров.
         """
-        parameters = {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf', 'poly'], 'gamma': ['scale', 'auto']}
+        parameters = {'C': [10], 'gamma': ['scale'], 'kernel': ['linear']}
 
         def log_best_params(gs):
             self.log.info(f"Best parameters found: {gs.best_params_}")
@@ -92,5 +98,5 @@ class SVMClassifier:
         predictions = self.model.predict(self.X_test)
         accuracy = accuracy_score(self.y_test, predictions)
         report = classification_report(self.y_test, predictions, output_dict=True)
-        self.log.important(f'Evaluation completed. Accuracy: {accuracy:.2f}')
+        self.log.important(f'Evaluation completed. Accuracy: {accuracy:.4f}')
         return {'accuracy': accuracy, 'report': report}
