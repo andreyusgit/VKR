@@ -30,3 +30,4 @@ if __name__ == '__main__':
     labels, texts, categories = collect_data('news.csv',
                                              data_columns=['title', 'text'], label_column='label')
     run_svm(labels, texts)
+    # run_bert(labels, texts, epochs=4)

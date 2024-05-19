@@ -1,5 +1,4 @@
 import nltk
-import numpy as np
 from sklearn import svm
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -70,7 +69,7 @@ class SVMClassifier:
         """
         Обучение модели SVM с подбором гиперпараметров.
         """
-        parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10], 'gamma': [0.001]}
+        parameters = {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf', 'poly'], 'gamma': ['scale', 'auto']}
 
         def log_best_params(gs):
             self.log.info(f"Best parameters found: {gs.best_params_}")
