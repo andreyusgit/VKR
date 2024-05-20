@@ -96,7 +96,7 @@ class BERTClassifier:
         elapsed_rounded = int(round(elapsed))
         return str(datetime.timedelta(seconds=elapsed_rounded))
 
-    def prepare_data(self, sentences, labels, sentences2, labels2):
+    def prepare_data(self, sentences, labels):
         """
         Подготовка данных для обучения или оценки.
 
@@ -105,7 +105,7 @@ class BERTClassifier:
         :return: tuple, содержащий тренировочный и валидационный DataLoader
         """
         input_ids, attention_masks = [], []
-        max_len = 64  # Устанавливаем максимальную длину в 512 токенов
+        max_len = 512  # Устанавливаем максимальную длину в 512 токенов
 
         for sent in sentences:
             encoded_dict = self.tokenizer.encode_plus(
@@ -124,36 +124,15 @@ class BERTClassifier:
         attention_masks = torch.cat(attention_masks, dim=0)
         labels = torch.tensor(labels)
 
-        input_ids2, attention_masks2 = [], []
-        for sent in sentences2:
-            encoded_dict = self.tokenizer.encode_plus(
-                sent,
-                add_special_tokens=True,
-                max_length=max_len,  # Ограничиваем максимальную длину
-                pad_to_max_length=True,
-                return_attention_mask=True,
-                truncation=True,  # Добавляем усечение
-                return_tensors='pt'
-            )
-            input_ids2.append(encoded_dict['input_ids'])
-            attention_masks2.append(encoded_dict['attention_mask'])
-
-        input_ids2 = torch.cat(input_ids2, dim=0)
-        attention_masks2 = torch.cat(attention_masks2, dim=0)
-        labels2 = torch.tensor(labels2)
-
         self.log.info('Original: ' + sentences[0])
         self.log.info('Token IDs: ' + str(input_ids[0]))
         self.log.info('Attention masks: ' + str(attention_masks[0]))
         self.log.info('Labels: ' + str(labels[0]))
 
         dataset = TensorDataset(input_ids, attention_masks, labels)
-        dataset2 = TensorDataset(input_ids2, attention_masks2, labels2)
-
-        train_size = int(0.85 * len(dataset))
+        train_size = int(0.9 * len(dataset))
         test_size = len(dataset) - train_size
-        self.train_dataset, temp1 = random_split(dataset, [train_size, test_size])
-        temp2, self.test_dataset = random_split(dataset2, [train_size, test_size])
+        self.train_dataset, self.test_dataset = random_split(dataset, [train_size, test_size])
 
         self.log.important('\n\n{:>5,} training samples'.format(train_size))
         self.log.important('{:>5,} validation samples\n\n'.format(test_size))
