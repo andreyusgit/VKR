@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, Tenso
 from transformers import (AdamW, BertForSequenceClassification, BertTokenizer,
                           get_linear_schedule_with_warmup)
 
-from logger import Logger
+from helpers.logger import Logger
 
 warnings.filterwarnings('ignore')
 
@@ -29,10 +29,10 @@ class BERTClassifier:
         :param output_dir: str, путь для сохранения модели
         """
         self.output_dir = output_dir
-        self.log = Logger(enable_logging)
+        self._log = Logger(enable_logging)
         self.device = self._get_device()
-        self.tokenizer = BertTokenizer.from_pretrained(model_name, do_lower_case=True)
-        self.model = BertForSequenceClassification.from_pretrained(
+        self._tokenizer = BertTokenizer.from_pretrained(model_name, do_lower_case=True)
+        self._model = BertForSequenceClassification.from_pretrained(
             model_name,
             num_labels=num_labels,
             output_attentions=False,
@@ -40,37 +40,6 @@ class BERTClassifier:
         )
         self.train_dataset = None
         self.test_dataset = None
-
-    def _get_device(self):
-        """
-        Определение и установка устройства для вычислений.
-        """
-        if torch.cuda.is_available():
-            device = torch.device("cuda")
-            self.log.info(f'There are {torch.cuda.device_count()} GPU(s) available.')
-            self.log.important('We will use the GPU:' + torch.cuda.get_device_name(0))
-        else:
-            self.log.warning('No GPU available, using the CPU instead.')
-            device = torch.device("cpu")
-        return device
-
-    def _print_model_params(self):
-        """
-        Вывод параметров модели.
-        """
-        params = list(self.model.named_parameters())
-        self.log.important('\n\nThe BERT model has {:} different named parameters.\n'.format(len(params)))
-        self.log.important('==== Embedding Layer ====\n')
-        for p in params[0:5]:
-            self.log.info("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
-
-        self.log.important('\n==== First Transformer ====\n')
-        for p in params[5:21]:
-            self.log.info("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
-
-        self.log.important('\n==== Output Layer ====\n')
-        for p in params[-4:]:
-            self.log.info("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
 
     @staticmethod
     def _flat_accuracy(preds, labels):
@@ -96,6 +65,37 @@ class BERTClassifier:
         elapsed_rounded = int(round(elapsed))
         return str(datetime.timedelta(seconds=elapsed_rounded))
 
+    def _get_device(self):
+        """
+        Определение и установка устройства для вычислений.
+        """
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            self._log.info(f'There are {torch.cuda.device_count()} GPU(s) available.')
+            self._log.important('We will use the GPU:' + torch.cuda.get_device_name(0))
+        else:
+            self._log.warning('No GPU available, using the CPU instead.')
+            device = torch.device("cpu")
+        return device
+
+    def _print_model_params(self):
+        """
+        Вывод параметров модели.
+        """
+        params = list(self._model.named_parameters())
+        self._log.important('\n\nThe BERT model has {:} different named parameters.\n'.format(len(params)))
+        self._log.important('==== Embedding Layer ====\n')
+        for p in params[0:5]:
+            self._log.info("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
+
+        self._log.important('\n==== First Transformer ====\n')
+        for p in params[5:21]:
+            self._log.info("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
+
+        self._log.important('\n==== Output Layer ====\n')
+        for p in params[-4:]:
+            self._log.info("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
+
     def prepare_data(self, sentences, labels):
         """
         Подготовка данных для обучения или оценки.
@@ -105,10 +105,10 @@ class BERTClassifier:
         :return: tuple, содержащий тренировочный и валидационный DataLoader
         """
         input_ids, attention_masks = [], []
-        max_len = 512  # Устанавливаем максимальную длину в 512 токенов
+        max_len = 128
 
         for sent in sentences:
-            encoded_dict = self.tokenizer.encode_plus(
+            encoded_dict = self._tokenizer.encode_plus(
                 sent,
                 add_special_tokens=True,
                 max_length=max_len,  # Ограничиваем максимальную длину
@@ -124,18 +124,18 @@ class BERTClassifier:
         attention_masks = torch.cat(attention_masks, dim=0)
         labels = torch.tensor(labels)
 
-        self.log.info('Original: ' + sentences[0])
-        self.log.info('Token IDs: ' + str(input_ids[0]))
-        self.log.info('Attention masks: ' + str(attention_masks[0]))
-        self.log.info('Labels: ' + str(labels[0]))
+        self._log.info('Original: ' + sentences[0])
+        self._log.info('Token IDs: ' + str(input_ids[0]))
+        self._log.info('Attention masks: ' + str(attention_masks[0]))
+        self._log.info('Labels: ' + str(labels[0]))
 
         dataset = TensorDataset(input_ids, attention_masks, labels)
         train_size = int(0.9 * len(dataset))
         test_size = len(dataset) - train_size
         self.train_dataset, self.test_dataset = random_split(dataset, [train_size, test_size])
 
-        self.log.important('\n\n{:>5,} training samples'.format(train_size))
-        self.log.important('{:>5,} validation samples\n\n'.format(test_size))
+        self._log.important('\n\n{:>5,} training samples'.format(train_size))
+        self._log.important('{:>5,} validation samples\n\n'.format(test_size))
 
         return self.train_dataset, self.test_dataset
 
@@ -158,7 +158,7 @@ class BERTClassifier:
         )
         return train_dataloader, test_dataloader
 
-    def train(self, epochs=3, batch_size=16):
+    def train(self, epochs=3, batch_size=32):
         """
         Обучение модели BERT.
 
@@ -173,10 +173,10 @@ class BERTClassifier:
 
         train_dataloader, test_dataloader = self._create_dataloaders(batch_size)
         if torch.cuda.is_available():
-            self.model.cuda()
+            self._model.cuda()
 
         self._print_model_params()
-        optimizer = AdamW(self.model.parameters(), lr=2e-5, eps=1e-8)
+        optimizer = AdamW(self._model.parameters(), lr=3e-5)
         total_steps = len(train_dataloader) * epochs
         scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=total_steps)
 
@@ -199,7 +199,7 @@ class BERTClassifier:
             # Освобождаем память CUDA после каждой эпохи
             torch.cuda.empty_cache()
 
-        self.log.important("\n\n\nTraining complete! Total training took " +
+        self._log.important("\n\n\nTraining complete! Total training took " +
                            "{:} (hh:mm:ss)".format(self._format_time(time.time() - total_t0)))
         self._save_model()
 
@@ -214,33 +214,33 @@ class BERTClassifier:
         :param epochs: int, общее количество эпох
         :return: tuple, среднее значение потерь и время обучения
         """
-        self.log.important('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
+        self._log.important('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
         t0 = time.time()
         total_train_loss = 0
-        self.model.train()
+        self._model.train()
 
         for step, batch in enumerate(train_dataloader):
             if step % 40 == 0 and not step == 0:
                 elapsed = self._format_time(time.time() - t0)
-                self.log.info(
+                self._log.info(
                     '  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
 
             b_input_ids, b_input_mask, b_labels = (batch[0].to(self.device),
                                                    batch[1].to(self.device),
                                                    batch[2].to(self.device))
-            self.model.zero_grad()
-            outputs = self.model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
+            self._model.zero_grad()
+            outputs = self._model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
             loss = outputs.loss
             total_train_loss += loss.item()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(self._model.parameters(), 1.0)
             optimizer.step()
             scheduler.step()
 
         avg_train_loss = total_train_loss / len(train_dataloader)
         training_time = self._format_time(time.time() - t0)
-        self.log.important("  Average training loss: {0:.2f}".format(avg_train_loss))
-        self.log.important("  Training epoch took: {:}".format(training_time))
+        self._log.important("  Average training loss: {0:.2f}".format(avg_train_loss))
+        self._log.important("  Training epoch took: {:}".format(training_time))
 
         return avg_train_loss, training_time
 
@@ -251,9 +251,9 @@ class BERTClassifier:
         :param test_dataloader: DataLoader, валидационные данные
         :return: tuple, средние значения потерь, точности и время тестирования
         """
-        self.log.important("Running Validation...")
+        self._log.important("Running Validation...")
         t0 = time.time()
-        self.model.eval()
+        self._model.eval()
         total_eval_accuracy = 0
         total_eval_loss = 0
 
@@ -262,7 +262,7 @@ class BERTClassifier:
                                                    batch[1].to(self.device),
                                                    batch[2].to(self.device))
             with torch.no_grad():
-                outputs = self.model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
+                outputs = self._model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
                 loss = outputs.loss
                 logits = outputs.logits
 
@@ -274,8 +274,8 @@ class BERTClassifier:
         avg_val_accuracy = total_eval_accuracy / len(test_dataloader)
         avg_val_loss = total_eval_loss / len(test_dataloader)
         validation_time = self._format_time(time.time() - t0)
-        self.log.info("  Validation Loss: {0:.2f}".format(avg_val_loss))
-        self.log.info("  Validation took: {:}".format(validation_time))
+        self._log.info("  Validation Loss: {0:.2f}".format(avg_val_loss))
+        self._log.info("  Validation took: {:}".format(validation_time))
 
         return avg_val_loss, avg_val_accuracy, validation_time
 
@@ -286,16 +286,16 @@ class BERTClassifier:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-        self.log.info("Saving model to %s" % self.output_dir)
-        model_to_save = self.model.module if hasattr(self.model, 'module') else self.model
+        self._log.info("Saving model to %s" % self.output_dir)
+        model_to_save = self._model.module if hasattr(self._model, 'module') else self._model
         model_to_save.save_pretrained(self.output_dir)
-        self.tokenizer.save_pretrained(self.output_dir)
+        self._tokenizer.save_pretrained(self.output_dir)
 
     def load_model(self):
         """
         Загрузка модели и токенизатора для дальнейшего использования.
         """
-        self.model = BertForSequenceClassification.from_pretrained(self.output_dir)
-        self.tokenizer = BertTokenizer.from_pretrained(self.output_dir)
+        self._model = BertForSequenceClassification.from_pretrained(self.output_dir)
+        self._tokenizer = BertTokenizer.from_pretrained(self.output_dir)
         if torch.cuda.is_available():
-            self.model.to(self.device)
+            self._model.to(self.device)

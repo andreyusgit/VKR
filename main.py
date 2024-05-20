@@ -1,6 +1,6 @@
-from data_processor import DataProcessor
-from bert_classifier import BERTClassifier
-from svm_classifier import SVMClassifier
+from helpers.data_processor import DataProcessor
+from models.bert_classifier import BERTClassifier
+from models.svm_classifier import SVMClassifier
 
 
 def collect_data(file_name: str, data_columns: list, label_column: str):
@@ -27,7 +27,7 @@ def run_svm(labels: list, texts: list, enable_logging: bool = True):
 
 
 if __name__ == '__main__':
-    labels, texts, categories = collect_data('news.csv',
+    labels, texts, categories = collect_data('data/news.csv',
                                              data_columns=['title', 'text'], label_column='label')
     run_svm(labels, texts)
     # run_bert(labels, texts, epochs=4)
