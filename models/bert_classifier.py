@@ -200,7 +200,7 @@ class BERTClassifier:
             torch.cuda.empty_cache()
 
         self._log.important("\n\n\nTraining complete! Total training took " +
-                           "{:} (hh:mm:ss)".format(self._format_time(time.time() - total_t0)))
+                            "{:} (hh:mm:ss)".format(self._format_time(time.time() - total_t0)))
         self._save_model()
 
     def _train_step(self, train_dataloader, optimizer, scheduler, epoch_i, epochs):
@@ -214,7 +214,7 @@ class BERTClassifier:
         :param epochs: int, общее количество эпох
         :return: tuple, среднее значение потерь и время обучения
         """
-        self._log.important('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
+        self._log.important('\n\n======== Epoch {:} / {:} ========\n\n'.format(epoch_i + 1, epochs))
         t0 = time.time()
         total_train_loss = 0
         self._model.train()
@@ -239,7 +239,7 @@ class BERTClassifier:
 
         avg_train_loss = total_train_loss / len(train_dataloader)
         training_time = self._format_time(time.time() - t0)
-        self._log.important("  Average training loss: {0:.2f}".format(avg_train_loss))
+        self._log.important("  Average training loss: {0:.4f}".format(avg_train_loss))
         self._log.important("  Training epoch took: {:}".format(training_time))
 
         return avg_train_loss, training_time
@@ -251,7 +251,7 @@ class BERTClassifier:
         :param test_dataloader: DataLoader, валидационные данные
         :return: tuple, средние значения потерь, точности и время тестирования
         """
-        self._log.important("Running Validation...")
+        self._log.important("\n\nRunning Validation...\n\n")
         t0 = time.time()
         self._model.eval()
         total_eval_accuracy = 0
@@ -274,7 +274,8 @@ class BERTClassifier:
         avg_val_accuracy = total_eval_accuracy / len(test_dataloader)
         avg_val_loss = total_eval_loss / len(test_dataloader)
         validation_time = self._format_time(time.time() - t0)
-        self._log.info("  Validation Loss: {0:.2f}".format(avg_val_loss))
+        self._log.info("  Validation Loss: {0:.4f}".format(avg_val_loss))
+        self._log.info("  Validation Accuracy: {0:.4f}".format(avg_val_accuracy))
         self._log.info("  Validation took: {:}".format(validation_time))
 
         return avg_val_loss, avg_val_accuracy, validation_time
