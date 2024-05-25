@@ -1,7 +1,7 @@
 import pandas as pd
 
 from sklearn.preprocessing import LabelEncoder
-from logger import Logger
+from helpers.logger import Logger
 
 
 class DataProcessor:
@@ -17,8 +17,8 @@ class DataProcessor:
         :param enable_logging: bool, флаг для включения логирования
         """
         self.file_path = file_path
-        self.log = Logger(enable_logging)  # Создание экземпляра логгера
-        self.label_encoder = LabelEncoder()  # Инициализация кодировщика меток
+        self._log = Logger(enable_logging)  # Создание экземпляра логгера
+        self._label_encoder = LabelEncoder()  # Инициализация кодировщика меток
 
     def load_and_filter_data(self, label_column, data_columns):
         """
@@ -31,31 +31,31 @@ class DataProcessor:
         try:
             data = pd.read_csv(self.file_path)  # Загрузка датасета
         except FileNotFoundError as e:
-            self.log.error(f"File not found: {self.file_path}")
+            self._log.error(f"File not found: {self.file_path}")
             raise e
         except pd.errors.EmptyDataError as e:
-            self.log.error(f"Empty data error: {self.file_path}")
+            self._log.error(f"Empty data error: {self.file_path}")
             raise e
         except Exception as e:
-            self.log.error(f"Error loading data: {e}")
+            self._log.error(f"Error loading data: {e}")
             raise e
 
         # Проверка наличия необходимых колонок в датасете
         if label_column not in data.columns:
             error_msg = f"Label column '{label_column}' not found in DataFrame."
-            self.log.error(error_msg)
+            self._log.error(error_msg)
             raise ValueError(error_msg)
         if not all(col in data.columns for col in data_columns):
             missing_cols = [col for col in data_columns if col not in data.columns]
             error_msg = f"Data columns '{missing_cols}' not found in DataFrame."
-            self.log.error(error_msg)
+            self._log.error(error_msg)
             raise ValueError(error_msg)
 
         # Удаление строк с пустыми значениями в указанных колонках
         data = data.dropna(subset=[label_column] + data_columns)
         if data.empty:
             error_msg = "No data left after dropping rows with missing values."
-            self.log.error(error_msg)
+            self._log.error(error_msg)
             raise ValueError(error_msg)
 
         # Извлечение меток и данных из указанных колонок
@@ -67,7 +67,7 @@ class DataProcessor:
             texts = data['combined_text'].tolist()
 
         # Логирование количества обработанных предложений
-        self.log.important('Number of training sentences: {:,}\n'.format(len(texts)))
+        self._log.important('Number of training sentences: {:,}\n'.format(len(texts)))
 
         return labels, texts
 
@@ -78,7 +78,7 @@ class DataProcessor:
         :param categories: list, список категорий (текстовые метки) для кодирования
         :return: array, массив закодированных числовых меток
         """
-        return self.label_encoder.fit_transform(categories)
+        return self._label_encoder.fit_transform(categories)
 
     def decode_labels(self, encoded_labels):
         """
@@ -87,4 +87,4 @@ class DataProcessor:
         :param encoded_labels: ndarray, массив числовых меток для декодирования
         :return: list, список декодированных текстовых меток
         """
-        return self.label_encoder.inverse_transform(encoded_labels)
+        return self._label_encoder.inverse_transform(encoded_labels)

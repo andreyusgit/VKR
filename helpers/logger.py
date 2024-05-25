@@ -5,7 +5,7 @@ class Logger:
 
         :param enable_logging: bool, указывает, следует ли выводить логи (True - выводить логи, False - не выводить)
         """
-        self.enable_logging = enable_logging
+        self._enable_logging = enable_logging
 
     def info(self, text):
         """
@@ -14,7 +14,7 @@ class Logger:
         :param text: str, текст информационного сообщения для вывода
         """
         # Выводит текст с обычным стилем
-        print("\033[0m{}".format(text)) if self.enable_logging else None
+        print("\033[0m{}".format(text)) if self._enable_logging else None
 
     def important(self, text):
         """
@@ -23,7 +23,7 @@ class Logger:
         :param text: str, текст важного сообщения для вывода
         """
         # Выводит текст с синим цветом
-        print("\033[36m{}".format(text)) if self.enable_logging else None
+        print("\033[36m{}".format(text)) if self._enable_logging else None
 
     def warning(self, text):
         """
@@ -32,7 +32,7 @@ class Logger:
         :param text: str, текст предупредительного сообщения для вывода
         """
         # Выводит текст с жёлтым цветом
-        print("\033[33m{}".format(text)) if self.enable_logging else None
+        print("\033[33m{}".format(text)) if self._enable_logging else None
 
     def error(self, text):
         """
@@ -41,4 +41,4 @@ class Logger:
         :param text: str, текст сообщения об ошибке для вывода
         """
         # Выводит текст с красным цветом
-        print("\033[31m{}".format(text)) if self.enable_logging else None
+        print("\033[31m{}".format(text)) if self._enable_logging else None
