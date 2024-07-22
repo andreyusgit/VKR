@@ -7,6 +7,12 @@ class Logger:
         """
         self._enable_logging = enable_logging
 
+    def __del__(self):
+        """
+        Деструктор класса, приводит текст в консоли к стандартному формату
+        """
+        print("\033[0m{}".format(' ')) if self._enable_logging else None
+
     def info(self, text):
         """
         Вывод информационного сообщения.

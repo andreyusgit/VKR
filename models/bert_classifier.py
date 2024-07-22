@@ -105,7 +105,7 @@ class BERTClassifier:
         :return: tuple, содержащий тренировочный и валидационный DataLoader
         """
         input_ids, attention_masks = [], []
-        max_len = 128
+        max_len = 80
 
         for sent in sentences:
             encoded_dict = self._tokenizer.encode_plus(
@@ -220,7 +220,7 @@ class BERTClassifier:
         self._model.train()
 
         for step, batch in enumerate(train_dataloader):
-            if step % 40 == 0 and not step == 0:
+            if step % 10 == 0 and not step == 0:
                 elapsed = self._format_time(time.time() - t0)
                 self._log.info(
                     '  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
@@ -300,3 +300,40 @@ class BERTClassifier:
         self._tokenizer = BertTokenizer.from_pretrained(self.output_dir)
         if torch.cuda.is_available():
             self._model.to(self.device)
+
+    def predict(self, texts):
+        """
+        Предсказание класса текста или списка текстов.
+
+        :param texts: str or list of str, текст или список текстов для классификации
+        :return: int or list of int, класс(ы) предсказанных текстов
+        """
+        self._model.eval()  # Переключаем модель в режим оценки
+        if isinstance(texts, str):
+            texts = [texts]
+
+        input_ids = []
+        attention_masks = []
+
+        for text in texts:
+            encoded_dict = self._tokenizer.encode_plus(
+                text,
+                add_special_tokens=True,
+                max_length=64,  # Ограничиваем максимальную длину
+                pad_to_max_length=True,
+                return_attention_mask=True,
+                truncation=True,  # Добавляем усечение
+                return_tensors='pt'
+            )
+            input_ids.append(encoded_dict['input_ids'])
+            attention_masks.append(encoded_dict['attention_mask'])
+
+        input_ids = torch.cat(input_ids, dim=0)
+        attention_masks = torch.cat(attention_masks, dim=0)
+
+        with torch.no_grad():
+            outputs = self._model(input_ids, token_type_ids=None, attention_mask=attention_masks)
+            logits = outputs.logits
+
+        predictions = torch.argmax(logits, dim=-1).detach().cpu().numpy()
+        return predictions if len(predictions) > 1 else predictions[0]

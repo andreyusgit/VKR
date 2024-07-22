@@ -65,11 +65,24 @@ class SVMClassifier:
         self._log.info(
             f'Training data prepared: {self.X_train.shape[0]} training samples, {self.X_test.shape[0]} test samples')
 
-    def train(self):
+    def train(self, C=None, kernel=None, gamma=None):
         """
         Обучение модели SVM с подбором гиперпараметров.
         """
-        parameters = {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf', 'poly'], 'gamma': ['scale', 'auto']}
+        if C is None:
+            C = [0.1, 1, 10]
+        elif isinstance(C, str):
+            C = [C]
+        if kernel is None:
+            kernel = ['linear', 'rbf', 'poly']
+        elif isinstance(kernel, str):
+            kernel = [kernel]
+        if gamma is None:
+            gamma = ['scale', 'auto']
+        elif isinstance(gamma, str):
+            gamma = [gamma]
+
+        parameters = {'C': C, 'kernel': kernel, 'gamma': gamma}
 
         def log_best_params(gs):
             self._log.info(f"Best parameters found: {gs.best_params_}")
